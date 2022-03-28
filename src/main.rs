@@ -1,19 +1,22 @@
+use std::str::FromStr;
+use palette::encoding::Srgb;
 use rand::Rng;
 use reqwest::Response;
 use svg::Document;
 use svg::node::element::Rectangle;
-use serde::{Serialize, Deserialize};
 
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug)]
 struct Palette {
-    colors: Vec<String>,
+    colors: Vec<palette::rgb::Rgb<Srgb, u8>>,
 }
 
 impl Palette {
-    fn get_random_color(&self) -> &str {
+    fn get_random_color(&self) -> String {
         let mut rnd = rand::thread_rng();
-        &self.colors[rnd.gen_range(0..self.colors.len())]
+        let color = &self.colors[rnd.gen_range(0..self.colors.len())];
+
+        format!("#{:X}{:X}{:X}", color.red, color.green, color.blue)
     }
 }
 
@@ -39,9 +42,16 @@ async fn get_palettes() -> reqwest::Result<Response> {
 async fn main() -> Result<(), reqwest::Error> {
     let palettes: Vec<Palette> = get_palettes()
         .await?.json::<Vec<Vec<String>>>()
-        .await?.into_iter().map(|colors| Palette { colors }).collect();
+        .await?.into_iter().map(|colors|
+        {
+            Palette {
+                colors: colors.into_iter().map(|color| {
+                    palette::Srgb::from_str(color.as_str()).unwrap()
+                }).collect()
+            }
+        }
+    ).collect();
 
-    // let palettes : Vec<Palette> =palettes;
 
     let mut rnd = rand::thread_rng();
 
